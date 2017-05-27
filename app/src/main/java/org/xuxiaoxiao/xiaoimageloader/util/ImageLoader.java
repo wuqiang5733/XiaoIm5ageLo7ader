@@ -64,4 +64,5 @@ public class ImageLoader {
         }
         return mInstance;
     }
+    // 第二次commit错了
 }

@@ -6,6 +6,8 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.GridView;
@@ -18,6 +20,7 @@ import org.xuxiaoxiao.xiaoimageloader.bean.FolderBean;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -36,6 +39,27 @@ public class MainActivity extends AppCompatActivity {
     private List<FolderBean> mFolderBeans = new ArrayList<>();
 
     private ProgressDialog mProgressDialog;
+
+    private static final int DATA_LOADED = 0x110;
+    private Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg); // 这儿不一样
+            if (msg.what == DATA_LOADED) {
+                mProgressDialog.dismiss();
+                // 绑定数据到View中
+                data2View();
+            }
+        }
+    };
+
+    private void data2View() {
+        if (mCurrentDir == null) {
+            Toast.makeText(this, "未扫描到图片", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        mImgs = Arrays.asList(mCurrentDir.list());
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,6 +141,8 @@ public class MainActivity extends AppCompatActivity {
                 cursor.close();
                 // 扫描完成，释放临时变量的内存
 //                mDirPaths = null;
+                // 通知Handler扫描图片完成
+                mHandler.sendEmptyMessage(0x110);
             }
         }.start();
     }

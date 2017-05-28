@@ -10,6 +10,7 @@ import android.util.LruCache;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
+import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -126,11 +127,11 @@ public class ImageLoader {
         return null;
     }
 
-    public static ImageLoader getmInstance() {
+    public static ImageLoader getInstance(int threadCount, Type type) {
         if (mInstance == null) {
             synchronized (ImageLoader.class) {
                 if (mInstance == null) {
-                    mInstance = new ImageLoader(DEFAULT_THREAD_COUNT, Type.LIFO);
+                    mInstance = new ImageLoader(threadCount, type);
                 }
             }
         }
@@ -293,6 +294,34 @@ public class ImageLoader {
         return imageSize;
     }
 
+    /**
+     * 通过反射获取imageView的某个属性值
+     *
+     * @param object
+     * @param fieldName
+     * @return
+     */
+    private static int getImageViewFieldValue(Object object, String fieldName) {
+        int value = 0;
+
+        Field field = null;
+        try {
+            field = ImageView.class.getDeclaredField(fieldName);
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        }
+        field.setAccessible(true);
+
+        try {
+            int fieldValue = field.getInt(object);
+            if (fieldValue > 0 && fieldValue < Integer.MAX_VALUE) {
+                value = fieldValue;
+            }
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return value;
+    }
 
     private synchronized void addTask(Runnable runnable) {
         mTaskQueue.add(runnable);

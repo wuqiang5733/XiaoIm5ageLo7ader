@@ -1,6 +1,7 @@
 package org.xuxiaoxiao.xiaoimageloader.util;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -100,12 +101,13 @@ public class ImageLoader {
 
     /**
      * 从任务队列取出一个方法
+     *
      * @return
      */
     private Runnable getTask() {
-        if (mType == Type.FIFO){
+        if (mType == Type.FIFO) {
             return mTaskQueue.removeFirst();
-        }else if (mType == Type.LIFO){
+        } else if (mType == Type.LIFO) {
             return mTaskQueue.removeLast();
         }
         return null;
@@ -128,7 +130,7 @@ public class ImageLoader {
      * @param path
      * @param imageView
      */
-    public void LoadImage(String path, final ImageView imageView) {
+    public void LoadImage(final String path, final ImageView imageView) {
         imageView.setTag(path);
         if (mUIHandler == null) {
             mUIHandler = new Handler() {
@@ -156,21 +158,69 @@ public class ImageLoader {
             holder.imageView = imageView;
             message.obj = holder;
             mUIHandler.sendMessage(message);
-        }else{
-            addTasks(new Runnable(){
+        } else {
+            addTasks(new Runnable() {
                 @Override
                 public void run() {
                     // 加载图片
                     // 图片的压缩
                     // 1 获取图片需要显示的大小
                     ImageSize imageSize = getImageViewSize(imageView);
+                    // 2 压缩图片
+                    Bitmap bm = decodeSampledBitmapFromPath(path, imageSize.width, imageSize.height);
                 }
             });
         }
     }
 
     /**
+     * 根据图片需要显示的宽和高对图片进行压缩
+     *
+     * @param path
+     * @param width
+     * @param height
+     * @return
+     */
+    private Bitmap decodeSampledBitmapFromPath(String path, int width, int height) {
+        // 获得图片的宽和高，并不把图片加载到内存中
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(path, options);
+
+        // 根据实际图片大小与所需图片大小获得采样比
+        options.inSampleSize = caculateInSampleSize(options, width, height);
+        // 使用获得的InSampleSize两次解析图片
+        options.inJustDecodeBounds = false;
+        Bitmap bitmap = BitmapFactory.decodeFile(path, options);
+        return bitmap;
+    }
+
+    /**
+     * 根据实际图片大小与所需图片大小获得采样比
+     *
+     * @param options
+     * @param width
+     * @param height
+     * @return
+     */
+    private int caculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+        int width = options.outWidth;
+        int height = options.outHeight;
+
+        int inSampleSize = 1;
+
+        if (width > reqWidth || height > reqHeight) {
+            int widthRadio = Math.round(width * 1.0f / reqWidth);
+            int heightRadio = Math.round(height * 1.0f / reqHeight);
+
+            inSampleSize = Math.max(widthRadio, heightRadio);
+        }
+        return inSampleSize;
+    }
+
+    /**
      * 根据imageView获取适当的压缩的宽和高
+     *
      * @param imageView
      * @return
      */
@@ -180,25 +230,25 @@ public class ImageLoader {
         ViewGroup.LayoutParams lp = imageView.getLayoutParams();
         int width = imageView.getWidth();
 //        int width = (lp.width == ViewGroup.LayoutParams.WRAP_CONTENT ? 0 : imageView.getWidth());
-        if (width <= 0){
+        if (width <= 0) {
             width = lp.width; // 获取imageView在layout中声明的宽度
         }
-        if (width <= 0){
+        if (width <= 0) {
             width = imageView.getMaxWidth(); // 检查最大值
         }
-        if (width <= 0){
+        if (width <= 0) {
             width = displayMetrics.widthPixels;
         }
 
         int height = imageView.getHeight();
 //        int width = (lp.width == ViewGroup.LayoutParams.WRAP_CONTENT ? 0 : imageView.getWidth());
-        if (height <= 0){
-            height = lp.height; // 获取imageView在layout中声明的宽度
+        if (height <= 0) {
+            height = lp.height; // 获取imageView在layout中声明的高度
         }
-        if (height <= 0){
+        if (height <= 0) {
             height = imageView.getMaxHeight(); // 检查最大值
         }
-        if (height <= 0){
+        if (height <= 0) {
             height = displayMetrics.heightPixels;
         }
 
@@ -225,8 +275,7 @@ public class ImageLoader {
         return mLruCache.get(key);
     }
 
-    private class ImageSize
-    {
+    private class ImageSize {
         int width;
         int height;
     }

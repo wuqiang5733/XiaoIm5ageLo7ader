@@ -13,6 +13,7 @@ import android.widget.ImageView;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 /**
  * Created by WuQiang on 2017/5/27.
@@ -53,6 +54,8 @@ public class ImageLoader {
      */
     private Handler mUIHandler;
 
+    private Semaphore mSemaphorePoolThreadHandler = new Semaphore(0);
+
     public enum Type {
         FIFO, LIFO;
     }
@@ -80,6 +83,8 @@ public class ImageLoader {
                         mThreadPool.execute(getTask());
                     }
                 };
+                // 释放一个信号量
+                mSemaphorePoolThreadHandler.release();
                 Looper.loop();
             }
         };
@@ -151,15 +156,9 @@ public class ImageLoader {
         // 根据path在缓存中获取bitmap
         Bitmap bm = getBitmapFromLruCache(path);
         if (bm != null) {
-            Message message = Message.obtain();
-            ImgBeanHolder holder = new ImgBeanHolder();
-            holder.bitmap = bm;
-            holder.path = path;
-            holder.imageView = imageView;
-            message.obj = holder;
-            mUIHandler.sendMessage(message);
+            refreashBitmap(path, imageView, bm);
         } else {
-            addTasks(new Runnable() {
+            addTask(new Runnable() {
                 @Override
                 public void run() {
                     // 加载图片
@@ -168,8 +167,34 @@ public class ImageLoader {
                     ImageSize imageSize = getImageViewSize(imageView);
                     // 2 压缩图片
                     Bitmap bm = decodeSampledBitmapFromPath(path, imageSize.width, imageSize.height);
+                    // 3 把图片回到缓存
+                    addBitmapToLruCache(path,bm);
+                    refreashBitmap(path, imageView, bm);
                 }
             });
+        }
+    }
+
+    private void refreashBitmap(String path, ImageView imageView, Bitmap bm) {
+        Message message = Message.obtain();
+        ImgBeanHolder holder = new ImgBeanHolder();
+        holder.bitmap = bm;
+        holder.path = path;
+        holder.imageView = imageView;
+        message.obj = holder;
+        mUIHandler.sendMessage(message);
+    }
+
+    /**
+     * 将图片加入LruCache
+     * @param path
+     * @param bm
+     */
+    private void addBitmapToLruCache(String path, Bitmap bm) {
+        if (getBitmapFromLruCache(path) == null){
+            if (bm != null){
+                mLruCache.put(path,bm);
+            }
         }
     }
 
@@ -197,10 +222,9 @@ public class ImageLoader {
 
     /**
      * 根据实际图片大小与所需图片大小获得采样比
-     *
      * @param options
-     * @param width
-     * @param height
+     * @param reqWidth
+     * @param reqHeight
      * @return
      */
     private int caculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
@@ -259,8 +283,19 @@ public class ImageLoader {
     }
 
 
-    private void addTasks(Runnable runnable) {
+    private synchronized void addTask(Runnable runnable) {
         mTaskQueue.add(runnable);
+        try {
+            if (mPoolThreadHandler == null)
+                // 当一个类里面使用了两个线程，并且某个线程使用了其它线程某个变量的时候，
+                // 一定要注意你使用这个变量的时候，能不能确保这个变量已经初始化完毕，
+                // 比如 mPoolThreadHandler 是在一个后台线程初始化的，初始化的速度我们无法确定，
+                // 所以我们使用了一个信号量机制：mPoolThreadHandler 初始化完成之后，mSemaphorePoolThreadHandler 会为1，然后我们请求就会得到。
+                // 如果 mPoolThreadHandler 初始化还没有完成，mSemaphorePoolThreadHandler.acquire(); 就会阻塞
+            mSemaphorePoolThreadHandler.acquire();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         mPoolThreadHandler.sendEmptyMessage(0x110);
     }
 

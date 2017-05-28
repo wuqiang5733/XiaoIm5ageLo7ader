@@ -55,6 +55,7 @@ public class ImageLoader {
     private Handler mUIHandler;
 
     private Semaphore mSemaphorePoolThreadHandler = new Semaphore(0);
+    private Semaphore mSemaphoreThreadPool;
 
     public enum Type {
         FIFO, LIFO;
@@ -81,6 +82,11 @@ public class ImageLoader {
                     public void handleMessage(Message msg) {
                         // 去线程池取出一个任务去执行
                         mThreadPool.execute(getTask());
+                        try {
+                            mSemaphoreThreadPool.acquire();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
                 };
                 // 释放一个信号量
@@ -102,6 +108,8 @@ public class ImageLoader {
         mThreadPool = Executors.newFixedThreadPool(threadCount);
         mTaskQueue = new LinkedList<Runnable>();
         mType = type;
+
+        mSemaphoreThreadPool = new Semaphore(threadCount);
     }
 
     /**
@@ -168,8 +176,9 @@ public class ImageLoader {
                     // 2 压缩图片
                     Bitmap bm = decodeSampledBitmapFromPath(path, imageSize.width, imageSize.height);
                     // 3 把图片回到缓存
-                    addBitmapToLruCache(path,bm);
+                    addBitmapToLruCache(path, bm);
                     refreashBitmap(path, imageView, bm);
+                    mSemaphoreThreadPool.release();
                 }
             });
         }
@@ -187,13 +196,14 @@ public class ImageLoader {
 
     /**
      * 将图片加入LruCache
+     *
      * @param path
      * @param bm
      */
     private void addBitmapToLruCache(String path, Bitmap bm) {
-        if (getBitmapFromLruCache(path) == null){
-            if (bm != null){
-                mLruCache.put(path,bm);
+        if (getBitmapFromLruCache(path) == null) {
+            if (bm != null) {
+                mLruCache.put(path, bm);
             }
         }
     }
@@ -222,6 +232,7 @@ public class ImageLoader {
 
     /**
      * 根据实际图片大小与所需图片大小获得采样比
+     *
      * @param options
      * @param reqWidth
      * @param reqHeight
@@ -292,7 +303,7 @@ public class ImageLoader {
                 // 比如 mPoolThreadHandler 是在一个后台线程初始化的，初始化的速度我们无法确定，
                 // 所以我们使用了一个信号量机制：mPoolThreadHandler 初始化完成之后，mSemaphorePoolThreadHandler 会为1，然后我们请求就会得到。
                 // 如果 mPoolThreadHandler 初始化还没有完成，mSemaphorePoolThreadHandler.acquire(); 就会阻塞
-            mSemaphorePoolThreadHandler.acquire();
+                mSemaphorePoolThreadHandler.acquire();
         } catch (InterruptedException e) {
             e.printStackTrace();
         }

@@ -2,6 +2,7 @@ package org.xuxiaoxiao.xiaoimageloader;
 
 import android.app.ProgressDialog;
 import android.content.ContentResolver;
+import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
@@ -10,12 +11,19 @@ import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
 import android.widget.GridView;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.xuxiaoxiao.xiaoimageloader.bean.FolderBean;
+import org.xuxiaoxiao.xiaoimageloader.util.ImageLoader;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -28,6 +36,7 @@ import java.util.Set;
 public class MainActivity extends AppCompatActivity {
     private GridView mGridView;
     private List<String> mImgs;
+    private ImageAdapter mImgAdapter;
 
     private RelativeLayout mBottomLy;
     private TextView mDirName;
@@ -59,6 +68,11 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         mImgs = Arrays.asList(mCurrentDir.list());
+        mImgAdapter = new ImageAdapter(this,mImgs,mCurrentDir.getAbsolutePath());
+        mGridView.setAdapter(mImgAdapter);
+
+        mDirCount.setText(mMaxCount + "");
+        mDirName.setText(mCurrentDir.getName());
     }
 
     @Override
@@ -76,6 +90,59 @@ public class MainActivity extends AppCompatActivity {
         mBottomLy = (RelativeLayout) findViewById(R.id.id_bottom_ly);
         mDirName = (TextView) findViewById(R.id.id_dir_name);
         mDirCount = (TextView) findViewById(R.id.id_dir_count);
+    }
+
+    private class ImageAdapter extends BaseAdapter {
+        private String mDirPath;
+        private List<String> mImgPaths;
+        private LayoutInflater mInflater;
+
+        public ImageAdapter(Context context, List<String> mData, String dirPath) {
+            this.mDirPath = dirPath;
+            this.mImgPaths = mData;
+            mInflater = LayoutInflater.from(context);
+        }
+
+        @Override
+        public int getCount() {
+            return mImgPaths.size();
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return mImgPaths.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            ViewHolder viewHolder = null;
+            if (convertView == null) {
+                convertView = mInflater.inflate(R.layout.item_gridview, parent, false);
+                viewHolder = new ViewHolder();
+                viewHolder.mImg = (ImageView) convertView.findViewById(R.id.id_item_image);
+                viewHolder.mSelect = (ImageButton) convertView.findViewById(R.id.id_item_select);
+                convertView.setTag(viewHolder);
+            } else {
+                viewHolder = (ViewHolder) convertView.getTag();
+            }
+            // 重置状态
+            viewHolder.mImg.setImageResource(R.drawable.pictures_no);
+            viewHolder.mSelect.setImageResource(R.drawable.picture_unselected);
+
+            ImageLoader.getInstance(3, ImageLoader.Type.LIFO).LoadImage(
+                    mDirPath + "/" + mImgPaths.get(position), viewHolder.mImg);
+            return convertView;
+        }
+
+        private class ViewHolder {
+            ImageView mImg;
+            ImageButton mSelect;
+        }
     }
 
     /**

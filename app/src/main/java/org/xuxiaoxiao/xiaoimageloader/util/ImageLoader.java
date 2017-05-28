@@ -4,7 +4,9 @@ import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.util.DisplayMetrics;
 import android.util.LruCache;
+import android.view.ViewGroup;
 import android.widget.ImageView;
 
 import java.util.LinkedList;
@@ -51,7 +53,7 @@ public class ImageLoader {
     private Handler mUIHandler;
 
     public enum Type {
-        FIFI, LIFO;
+        FIFO, LIFO;
     }
 
     private ImageLoader(int threadCount, Type type) {
@@ -74,6 +76,7 @@ public class ImageLoader {
                     @Override
                     public void handleMessage(Message msg) {
                         // 去线程池取出一个任务去执行
+                        mThreadPool.execute(getTask());
                     }
                 };
                 Looper.loop();
@@ -93,6 +96,19 @@ public class ImageLoader {
         mThreadPool = Executors.newFixedThreadPool(threadCount);
         mTaskQueue = new LinkedList<Runnable>();
         mType = type;
+    }
+
+    /**
+     * 从任务队列取出一个方法
+     * @return
+     */
+    private Runnable getTask() {
+        if (mType == Type.FIFO){
+            return mTaskQueue.removeFirst();
+        }else if (mType == Type.LIFO){
+            return mTaskQueue.removeLast();
+        }
+        return null;
     }
 
     public static ImageLoader getmInstance() {
@@ -140,7 +156,62 @@ public class ImageLoader {
             holder.imageView = imageView;
             message.obj = holder;
             mUIHandler.sendMessage(message);
+        }else{
+            addTasks(new Runnable(){
+                @Override
+                public void run() {
+                    // 加载图片
+                    // 图片的压缩
+                    // 1 获取图片需要显示的大小
+                    ImageSize imageSize = getImageViewSize(imageView);
+                }
+            });
         }
+    }
+
+    /**
+     * 根据imageView获取适当的压缩的宽和高
+     * @param imageView
+     * @return
+     */
+    private ImageSize getImageViewSize(ImageView imageView) {
+        ImageSize imageSize = new ImageSize();
+        DisplayMetrics displayMetrics = imageView.getContext().getResources().getDisplayMetrics();
+        ViewGroup.LayoutParams lp = imageView.getLayoutParams();
+        int width = imageView.getWidth();
+//        int width = (lp.width == ViewGroup.LayoutParams.WRAP_CONTENT ? 0 : imageView.getWidth());
+        if (width <= 0){
+            width = lp.width; // 获取imageView在layout中声明的宽度
+        }
+        if (width <= 0){
+            width = imageView.getMaxWidth(); // 检查最大值
+        }
+        if (width <= 0){
+            width = displayMetrics.widthPixels;
+        }
+
+        int height = imageView.getHeight();
+//        int width = (lp.width == ViewGroup.LayoutParams.WRAP_CONTENT ? 0 : imageView.getWidth());
+        if (height <= 0){
+            height = lp.height; // 获取imageView在layout中声明的宽度
+        }
+        if (height <= 0){
+            height = imageView.getMaxHeight(); // 检查最大值
+        }
+        if (height <= 0){
+            height = displayMetrics.heightPixels;
+        }
+
+        imageSize.width = width;
+        imageSize.height = height;
+
+        return imageSize;
+    }
+
+
+    private void addTasks(Runnable runnable) {
+        mTaskQueue.add(runnable);
+        mPoolThreadHandler.sendEmptyMessage(0x110);
     }
 
 
@@ -152,6 +223,12 @@ public class ImageLoader {
      */
     private Bitmap getBitmapFromLruCache(String key) {
         return mLruCache.get(key);
+    }
+
+    private class ImageSize
+    {
+        int width;
+        int height;
     }
 
     private class ImgBeanHolder {

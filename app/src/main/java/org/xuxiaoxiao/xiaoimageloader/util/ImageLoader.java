@@ -361,3 +361,4 @@ public class ImageLoader {
         String path;
     }
 }
+//https://www.mkyong.com/java/java-thread-mutex-and-semaphore-example/

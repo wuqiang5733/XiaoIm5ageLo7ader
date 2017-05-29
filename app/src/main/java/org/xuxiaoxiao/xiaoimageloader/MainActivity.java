@@ -10,7 +10,10 @@ import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.view.WindowManager;
 import android.widget.GridView;
+import android.widget.PopupWindow;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -43,6 +46,8 @@ public class MainActivity extends AppCompatActivity {
     private ProgressDialog mProgressDialog;
 
     private static final int DATA_LOADED = 0x110;
+    private ListImageDirPopupWindow mDirPopupWindow;
+
     private Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -51,9 +56,29 @@ public class MainActivity extends AppCompatActivity {
                 mProgressDialog.dismiss();
                 // 绑定数据到View中
                 data2View();
+                initDirPopupWindow();
             }
         }
     };
+
+    private void initDirPopupWindow() {
+        mDirPopupWindow = new ListImageDirPopupWindow(this,mFolderBeans);
+        mDirPopupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
+            @Override
+            public void onDismiss() {
+                lightOn();
+            }
+        });
+    }
+
+    /**
+     * 内容区域变亮
+     */
+    private void lightOn() {
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.alpha = 1.0f;
+        getWindow().setAttributes(lp);
+    }
 
     private void data2View() {
         if (mCurrentDir == null) {
@@ -155,6 +180,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initEvent() {
+        mBottomLy.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+//                mDirPopupWindow.setAnimationStyle(animationS);
+                mDirPopupWindow.showAsDropDown(mBottomLy,0,0);
+                lightOff();
+            }
+        });
+    }
+
+    /**
+     * 内容区域变暗
+     */
+    private void lightOff() {
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.alpha = .3f;
+        getWindow().setAttributes(lp);
     }
 
 

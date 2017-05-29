@@ -120,7 +120,7 @@ public class ListImageDirPopupWindow extends PopupWindow {
             holder.mImg.setImageResource(R.drawable.pictures_no);
             // 回调加载
             ImageLoader.getInstance(3, ImageLoader.Type.LIFO).LoadImage(bean.getFirstImgPath(), holder.mImg);
-            holder.mDirCount.setText(bean.getCount());
+            holder.mDirCount.setText(bean.getCount() + "");
             holder.mDirName.setText(bean.getName());
 
 

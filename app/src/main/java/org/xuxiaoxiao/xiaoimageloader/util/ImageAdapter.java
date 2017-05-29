@@ -71,7 +71,8 @@ public class ImageAdapter extends BaseAdapter {
                 // 已经被选择
                 if (mSelectedImg.contains(filePath)) {
                     mSelectedImg.remove(filePath);
-                    viewHolder.mImg.setColorFilter(Color.parseColor(null));
+                    viewHolder.mImg.setColorFilter(null);
+//                    viewHolder.mImg.setColorFilter(Color.parseColor(null));
                     viewHolder.mSelect.setImageResource(R.drawable.picture_unselected);
                 } else // 未被选择
                 {

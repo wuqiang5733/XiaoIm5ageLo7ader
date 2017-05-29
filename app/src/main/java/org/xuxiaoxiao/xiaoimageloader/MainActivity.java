@@ -132,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
 
-//        verifyStoragePermissions(this);
+        verifyStoragePermissions(this);
 
         initView();
         initData();

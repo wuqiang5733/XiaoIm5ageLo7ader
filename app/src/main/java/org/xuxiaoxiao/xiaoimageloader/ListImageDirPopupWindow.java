@@ -2,15 +2,23 @@ package org.xuxiaoxiao.xiaoimageloader;
 
 import android.content.Context;
 import android.graphics.drawable.BitmapDrawable;
+import android.support.annotation.LayoutRes;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.ArrayAdapter;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.PopupWindow;
+import android.widget.TextView;
 
 import org.xuxiaoxiao.xiaoimageloader.bean.FolderBean;
+import org.xuxiaoxiao.xiaoimageloader.util.ImageLoader;
 
 import java.util.List;
 
@@ -29,35 +37,37 @@ public class ListImageDirPopupWindow extends PopupWindow {
 //        super(context);
 //        mData = data;
         calWidthAndHeight(context);
-        
-        mConvertView = LayoutInflater.from(context).inflate(R.layout.popup_main,null);
+
+        mConvertView = LayoutInflater.from(context).inflate(R.layout.popup_main, null);
         mData = data;
-        
+
         setContentView(mConvertView);
         setWidth(mWidth);
         setHeight(mHeight);
-        
+
         setFocusable(true);
         setTouchable(true);
         setOutsideTouchable(true);
         setBackgroundDrawable(new BitmapDrawable());
-        
+
         setTouchInterceptor(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_OUTSIDE)
-                {
+                if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
                     dismiss();
                     return true;
                 }
                 return false;
             }
         });
-        initViews();
+        initViews(context);
         initEvent();
     }
 
-    private void initViews() {
+    private void initViews(Context context) {
+        mListView = (ListView) mConvertView.findViewById(R.id.id_list_dir);
+        mListView.setAdapter(new ListDirAdapter(context, 0, mData));
+
     }
 
     private void initEvent() {
@@ -65,14 +75,62 @@ public class ListImageDirPopupWindow extends PopupWindow {
 
     /**
      * 计算popupWindow的宽度和高度
+     *
      * @param context
      */
     private void calWidthAndHeight(Context context) {
         WindowManager wm = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         DisplayMetrics outMetrics = new DisplayMetrics();
         wm.getDefaultDisplay().getMetrics(outMetrics);
-        
+
         mWidth = outMetrics.widthPixels;
-        mHeight = (int)(outMetrics.heightPixels * 0.7);
+        mHeight = (int) (outMetrics.heightPixels * 0.7);
+    }
+
+    private class ListDirAdapter extends ArrayAdapter<FolderBean> {
+        private LayoutInflater mInflater;
+        private List<FolderBean> mData;
+
+        public ListDirAdapter(@NonNull Context context, @LayoutRes int resource, @NonNull List<FolderBean> objects) {
+            super(context, 0, objects);
+            mInflater = LayoutInflater.from(context);
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+
+            ViewHolder holder = null;
+
+            if (convertView == null) {
+                holder = new ViewHolder();
+                convertView = mInflater.inflate(R.layout.item_popup_main, parent, false);
+                holder.mImg = (ImageView) convertView.findViewById(R.id.id_id_dir_item_image);
+                holder.mDirName = (TextView) convertView.findViewById(R.id.id_dir_item_name);
+                holder.mDirCount = (TextView) convertView.findViewById(R.id.id_dir_item_count);
+
+                convertView.setTag(holder);
+
+            } else {
+                holder = (ViewHolder) convertView.getTag();
+            }
+
+            FolderBean bean = getItem(position);
+            // 重置
+            holder.mImg.setImageResource(R.drawable.pictures_no);
+            // 回调加载
+            ImageLoader.getInstance(3, ImageLoader.Type.LIFO).LoadImage(bean.getFirstImgPath(), holder.mImg);
+            holder.mDirCount.setText(bean.getCount());
+            holder.mDirName.setText(bean.getName());
+
+
+            return convertView;
+        }
+
+        private class ViewHolder {
+            ImageView mImg;
+            TextView mDirName;
+            TextView mDirCount;
+        }
     }
 }

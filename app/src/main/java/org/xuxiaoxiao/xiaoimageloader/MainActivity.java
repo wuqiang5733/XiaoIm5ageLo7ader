@@ -62,11 +62,34 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void initDirPopupWindow() {
-        mDirPopupWindow = new ListImageDirPopupWindow(this,mFolderBeans);
+        mDirPopupWindow = new ListImageDirPopupWindow(this, mFolderBeans);
         mDirPopupWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
             @Override
             public void onDismiss() {
                 lightOn();
+            }
+        });
+
+        mDirPopupWindow.setOnDirSelectedListener(new ListImageDirPopupWindow.OnDirSelectedListener() {
+            @Override
+            public void onSelected(FolderBean folderBean) {
+                mCurrentDir = new File(folderBean.getDir());
+                mImgs = Arrays.asList(mCurrentDir.list(new FilenameFilter() {
+                    @Override
+                    public boolean accept(File dir, String filename) {
+                        if (filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png"))
+                            return true;
+                        return false;
+                    }
+                }));
+
+                mImgAdapter = new ImageAdapter(MainActivity.this,mImgs,mCurrentDir.getAbsolutePath());
+                mGridView.setAdapter(mImgAdapter);
+
+                mDirCount.setText(mImgs.size() + "");
+                mDirName.setText(folderBean.getName());
+
+                mDirPopupWindow.dismiss();
             }
         });
     }
@@ -184,7 +207,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 //                mDirPopupWindow.setAnimationStyle(animationS);
-                mDirPopupWindow.showAsDropDown(mBottomLy,0,0);
+                mDirPopupWindow.showAsDropDown(mBottomLy, 0, 0);
                 lightOff();
             }
         });

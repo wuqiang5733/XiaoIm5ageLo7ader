@@ -206,7 +206,7 @@ public class MainActivity extends AppCompatActivity {
         mBottomLy.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                mDirPopupWindow.setAnimationStyle(animationS);
+                mDirPopupWindow.setAnimationStyle(R.style.dir_popupwindow_anim);
                 mDirPopupWindow.showAsDropDown(mBottomLy, 0, 0);
                 lightOff();
             }

@@ -18,6 +18,7 @@ import java.util.Set;
 public class ImageAdapter extends BaseAdapter {
     private static Set<String> mSelectedImg = new HashSet<String>();
     private String mDirPath;
+    // 包含目录下的所有图片路径的List
     private List<String> mImgPaths;
     private LayoutInflater mInflater;
 
@@ -63,9 +64,10 @@ public class ImageAdapter extends BaseAdapter {
                 mDirPath + "/" + mImgPaths.get(position), viewHolder.mImg);
 
         final String filePath = mDirPath + "/" + mImgPaths.get(position);
+//        Log.d("WQWQ_filePath",filePath);
+//        Log.d("WQWQ_mDirPath",mDirPath);
+//        Log.d("WQWQ_position",mImgPaths.get(position));
         viewHolder.mImg.setOnClickListener(new View.OnClickListener() {
-
-
             @Override
             public void onClick(View v) {
                 // 已经被选择

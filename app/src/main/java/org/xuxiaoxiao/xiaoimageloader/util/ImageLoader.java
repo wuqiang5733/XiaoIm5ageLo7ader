@@ -25,11 +25,13 @@ public class ImageLoader {
 
     /**
      * 图片缓存的核心对象
+     * 管理所有图片占用的内存
      */
     private LruCache<String, Bitmap> mLruCache;
 
     /**
      * 线程池
+     * 去执行加载图片的任务
      */
     private ExecutorService mThreadPool;
     // 默认线程数
@@ -41,17 +43,21 @@ public class ImageLoader {
     private Type mType = Type.LIFO;
     /**
      * 任务队列
+     * 之所以用 LinkedList 是因为 LinkedList 有从 头部 取一个对象和从 尾部 取一个对象的方法
+     * 并且 LinkedList 是用 链表的方式，不需要连续的内存
      */
     private LinkedList<Runnable> mTaskQueue;
 
     /**
      * 后台轮询线程
+     * 以及 与之绑定的 给这个 Thread 的 MessageQueue 发送消息的 Handler
      */
     private Thread mPoolThread;
     private Handler mPoolThreadHandler;
 
     /**
      * UI线程中的Handler
+     * 根据图片的 path 去设置 Bitmap
      */
     private Handler mUIHandler;
 
@@ -77,6 +83,7 @@ public class ImageLoader {
         mPoolThread = new Thread() {
             @Override
             public void run() {
+                // Attach a Looper to the current Thread
                 Looper.prepare();
                 mPoolThreadHandler = new Handler() {
                     @Override
@@ -92,6 +99,7 @@ public class ImageLoader {
                 };
                 // 释放一个信号量
                 mSemaphorePoolThreadHandler.release();
+                // Start the message processing
                 Looper.loop();
             }
         };
@@ -102,7 +110,13 @@ public class ImageLoader {
         mLruCache = new LruCache<String, Bitmap>(cacheMemory) {
             @Override
             protected int sizeOf(String key, Bitmap value) {
+                // 返回每个元素所占用的内存字节数
+                /**
+                 * getRowBytes()
+                 * Return the number of bytes between rows in the bitmap's pixels.
+                 */
                 return value.getRowBytes() * value.getHeight();
+//                return value.getByteCount(); // 官方视频上的方法
             }
         };
         // 创建线程池
@@ -140,6 +154,7 @@ public class ImageLoader {
 
     /**
      * 根据path为imageView设置图片
+     * 这个方法是运行在UI线程的，所以其 mUIHandler 是可以去操作UI线程的
      *
      * @param path
      * @param imageView
@@ -165,8 +180,11 @@ public class ImageLoader {
         // 根据path在缓存中获取bitmap
         Bitmap bm = getBitmapFromLruCache(path);
         if (bm != null) {
+            // 如果缓存当中有图片的话，让 mUIHandler 发送一个消息，
+            // 这个消息当中有图片Path ，ImageView ，Bitmap ，
+            // 然后 mUIHandler 在其 handleMessage 方法当中就可以把 Bitmap 设置到 ImageView 上
             refreashBitmap(path, imageView, bm);
-        } else {
+        } else { // 如果图片在缓存当中找不到
             addTask(new Runnable() {
                 @Override
                 public void run() {
@@ -174,10 +192,11 @@ public class ImageLoader {
                     // 图片的压缩
                     // 1 获取图片需要显示的大小
                     ImageSize imageSize = getImageViewSize(imageView);
-                    // 2 压缩图片
+                    // 2 压缩图片，并生成Bitmap
                     Bitmap bm = decodeSampledBitmapFromPath(path, imageSize.width, imageSize.height);
                     // 3 把图片回到缓存
                     addBitmapToLruCache(path, bm);
+                    // 让UI线程的Handler发送一个消息
                     refreashBitmap(path, imageView, bm);
                     mSemaphoreThreadPool.release();
                 }
@@ -220,13 +239,15 @@ public class ImageLoader {
     private Bitmap decodeSampledBitmapFromPath(String path, int width, int height) {
         // 获得图片的宽和高，并不把图片加载到内存中
         BitmapFactory.Options options = new BitmapFactory.Options();
+        // 不返回Bitmap，但可以获得Bitmpa的参数
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(path, options);
 
         // 根据实际图片大小与所需图片大小获得采样比
         options.inSampleSize = caculateInSampleSize(options, width, height);
-        // 使用获得的InSampleSize两次解析图片
+        // 使用获得的InSampleSize再次解析图片
         options.inJustDecodeBounds = false;
+        // Decode a file path into a bitmap
         Bitmap bitmap = BitmapFactory.decodeFile(path, options);
         return bitmap;
     }
@@ -251,6 +272,21 @@ public class ImageLoader {
 
             inSampleSize = Math.max(widthRadio, heightRadio);
         }
+        // 下面这个是官方的Demo : https://developer.android.com/topic/performance/graphics/load-bitmap.html ，
+        // 但发现其实内存使用增加了一倍，当然清晰度也有很大的提升
+//        if (height > reqHeight || width > reqWidth) {
+//
+//            final int halfHeight = height / 2;
+//            final int halfWidth = width / 2;
+//
+//            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+//            // height and width larger than the requested height and width.
+//            while ((halfHeight / inSampleSize) >= reqHeight
+//                    && (halfWidth / inSampleSize) >= reqWidth) {
+//                inSampleSize *= 2;
+//            }
+//        }
+        // 加大 inSampleSize 对于减少内存使用是没有什么作用的
         return inSampleSize;
     }
 
@@ -273,7 +309,7 @@ public class ImageLoader {
             width = imageView.getMaxWidth(); // 检查最大值
         }
         if (width <= 0) {
-            width = displayMetrics.widthPixels;
+            width = displayMetrics.widthPixels;  // 用屏幕的宽度做为 width
         }
 
         int height = imageView.getHeight();
@@ -290,6 +326,16 @@ public class ImageLoader {
 
         imageSize.width = width;
         imageSize.height = height;
+        // 下面这一段代码也应该是可以工作的
+//        ViewTreeObserver vto = imageView.getViewTreeObserver();
+//        vto.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+//            public boolean onPreDraw() {
+//                int finalHeight = imageView.getMeasuredHeight();
+//                int finalWidth = imageView.getMeasuredWidth();
+//                Log.e("hilength","Height: " + finalHeight + " Width: " + finalWidth);
+//                return true;
+//            }
+//        });
 
         return imageSize;
     }
@@ -310,9 +356,13 @@ public class ImageLoader {
         } catch (NoSuchFieldException e) {
             e.printStackTrace();
         }
+        /**
+         * 如果取得的Field是private的，那么就要调用setAccessible(true)，否则会报IllegalAccessException
+         */
         field.setAccessible(true);
 
         try {
+            // 获得一个属性的值
             int fieldValue = field.getInt(object);
             if (fieldValue > 0 && fieldValue < Integer.MAX_VALUE) {
                 value = fieldValue;
@@ -330,8 +380,11 @@ public class ImageLoader {
                 // 当一个类里面使用了两个线程，并且某个线程使用了其它线程某个变量的时候，
                 // 一定要注意你使用这个变量的时候，能不能确保这个变量已经初始化完毕，
                 // 比如 mPoolThreadHandler 是在一个后台线程初始化的，初始化的速度我们无法确定，
-                // 所以我们使用了一个信号量机制：mPoolThreadHandler 初始化完成之后，mSemaphorePoolThreadHandler 会为1，然后我们请求就会得到。
-                // 如果 mPoolThreadHandler 初始化还没有完成，mSemaphorePoolThreadHandler.acquire(); 就会阻塞
+                // 所以我们使用了一个信号量机制 ：private Semaphore mSemaphorePoolThreadHandler = new Semaphore(0); 一开始是为 0
+                //
+                // mPoolThreadHandler 初始化完成之后，通过  mSemaphorePoolThreadHandler.release();方法
+                // mSemaphorePoolThreadHandler 会为1，然后通过 mSemaphorePoolThreadHandler.acquire(); 请求我们请求就会得到。
+                // 如果 mPoolThreadHandler 初始化还没有完成，mSemaphorePoolThreadHandler.acquire(); 就会被阻塞
                 mSemaphorePoolThreadHandler.acquire();
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -362,3 +415,16 @@ public class ImageLoader {
     }
 }
 //https://www.mkyong.com/java/java-thread-mutex-and-semaphore-example/
+// LruCache的使用及原理 : http://www.cnblogs.com/huhx/p/useLruCache.html
+
+/**
+ *  UI线程当中的Handler，是根据LruCache当中的Bitmap去设置ImageView
+ *
+ *  LoadImage 的主要工作是：在缓存当中找Bitmap，如果没有找到，就把
+ *  计算ImageView大小、根据采样比生成Bitmap、把Bitmap放到缓存当中、通知UIHnadler可以用Bitmap设置ImageView了
+ *  上面四个任务通过 addTask 方法 放到  private LinkedList<Runnable> mTaskQueue 当中
+ *  在 addTask 方法当中有一句 ： mPoolThreadHandler.sendEmptyMessage(0x110);
+ *
+ *  而整个这个类是运行在一个 有Looper 的线程当中，
+ *  在 handleMessage 当中开辟了一个线程池，去不停的取用任务队列当中的任务：  mThreadPool.execute(getTask());
+ */

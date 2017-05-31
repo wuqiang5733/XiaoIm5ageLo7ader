@@ -118,7 +118,11 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "未扫描到图片", Toast.LENGTH_SHORT).show();
             return;
         }
+        //  File parentFile = new File(path).getParentFile();
+        //  mCurrentDir = parentFile;
+        //  private List<String> mImgs;
         mImgs = Arrays.asList(mCurrentDir.list());
+        // public ImageAdapter(Context context, List<String> mData, String dirPath)
         mImgAdapter = new ImageAdapter(this, mImgs, mCurrentDir.getAbsolutePath());
         mGridView.setAdapter(mImgAdapter);
 
@@ -168,18 +172,24 @@ public class MainActivity extends AppCompatActivity {
                 Set<String> mDirPaths = new HashSet<String>();
 
                 while (cursor.moveToNext()) {
+                    // 根据索引值获取图片路径
+                    // 像这样：/storage/emulated/0/Pictures/Screenshots/Screenshot_2016-10-21-02-39-00.png
                     String path = cursor.getString(cursor
                             .getColumnIndex(MediaStore.Images.Media.DATA));
+//                    Log.d("WQWQ-path",path);
                     File parentFile = new File(path).getParentFile();
                     if (parentFile == null)
                         continue;
+                    // 像这样：/storage/emulated/0/Pictures/Screenshots
                     String dirPath = parentFile.getAbsolutePath();
+//                    Log.d("WQWQ-dirPath",dirPath);
                     FolderBean folderBean = null;
 
                     if (mDirPaths.contains(dirPath)) // 如果当前的文件夹扫描过了
                     {
                         continue;
                     } else {
+                        // 加入 set 当中
                         mDirPaths.add(dirPath);
                         folderBean = new FolderBean();
                         folderBean.setDir(dirPath);
@@ -203,6 +213,7 @@ public class MainActivity extends AppCompatActivity {
 
                     if (picSize > mMaxCount) {
                         mMaxCount = picSize;
+                        // 第一次显示的，是文件数最多的那个文件夹
                         mCurrentDir = parentFile;
                     }
                 }
@@ -210,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
                 // 扫描完成，释放临时变量的内存
 //                mDirPaths = null;
                 // 通知Handler扫描图片完成
-                mHandler.sendEmptyMessage(0x110);
+                mHandler.sendEmptyMessage(DATA_LOADED);
             }
         }.start();
     }

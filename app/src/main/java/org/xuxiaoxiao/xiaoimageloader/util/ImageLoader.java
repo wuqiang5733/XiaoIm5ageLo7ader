@@ -306,6 +306,7 @@ public class ImageLoader {
             width = lp.width; // 获取imageView在layout中声明的宽度
         }
         if (width <= 0) {
+            // 就是这个方法用的反射
             width = imageView.getMaxWidth(); // 检查最大值
         }
         if (width <= 0) {

@@ -34,10 +34,12 @@ import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
     private GridView mGridView;
+    // GridView 的数据集
     private List<String> mImgs;
     private ImageAdapter mImgAdapter;
 
     private RelativeLayout mBottomLy;
+    // 显示文件夹与对应的图片个数
     private TextView mDirName;
     private TextView mDirCount;
 
@@ -68,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
     private static String[] PERMISSIONS_STORAGE = {
             "android.permission.READ_EXTERNAL_STORAGE",
-            "android.permission.WRITE_EXTERNAL_STORAGE" };
+            "android.permission.WRITE_EXTERNAL_STORAGE"};
 
 
     private void initDirPopupWindow() {
@@ -93,7 +95,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }));
 
-                mImgAdapter = new ImageAdapter(MainActivity.this,mImgs,mCurrentDir.getAbsolutePath());
+                mImgAdapter = new ImageAdapter(MainActivity.this, mImgs, mCurrentDir.getAbsolutePath());
                 mGridView.setAdapter(mImgAdapter);
 
                 mDirCount.setText(mImgs.size() + "");
@@ -121,6 +123,13 @@ public class MainActivity extends AppCompatActivity {
         //  File parentFile = new File(path).getParentFile();
         //  mCurrentDir = parentFile;
         //  private List<String> mImgs;
+        //  mImgs 是 GridView 的数据集
+        //  mCurrentDir.list() 返回的是一个数组，所以用 asList 包装成一个 List
+        /**
+         * list()方法是返回某个目录下的所有文件和目录的文件名，返回的是String数组
+         * listFiles()方法是返回某个目录下所有文件和目录的绝对路径，返回的是File数组
+         * 看本代码底部的例子
+         */
         mImgs = Arrays.asList(mCurrentDir.list());
         // public ImageAdapter(Context context, List<String> mData, String dirPath)
         mImgAdapter = new ImageAdapter(this, mImgs, mCurrentDir.getAbsolutePath());
@@ -152,6 +161,7 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * 利用ContentProvider扫描手机中的所有图片
+     * 生成 PopupWindow 所需的数据：文件夹的路径，文件夹下第一个图片的路径，文件夹下图片的数量
      */
     private void initData() {
         if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
@@ -166,7 +176,15 @@ public class MainActivity extends AppCompatActivity {
                 Uri mImgUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
                 ContentResolver cr = MainActivity.this.getContentResolver();
 
-                Cursor cursor = cr.query(mImgUri, null, MediaStore.Images.Media.MIME_TYPE + " =? or " + MediaStore.Images.Media.MIME_TYPE + " =? ", new String[]{"image/jpeg", "image/png"}, MediaStore.Images.Media.DATE_MODIFIED);
+                String[] projection = null;
+
+                // Defines a string to contain the selection clause
+                String mSelectionClause = MediaStore.Images.Media.MIME_TYPE + " =? or " + MediaStore.Images.Media.MIME_TYPE + " =? ";
+
+                // Initializes an array to contain selection arguments
+                String[] mSelectionArgs = {"image/jpeg", "image/png"};
+
+                Cursor cursor = cr.query(mImgUri, projection, mSelectionClause, mSelectionArgs ,MediaStore.Images.Media.DATE_MODIFIED);
 
                 // 防止重复遍历
                 Set<String> mDirPaths = new HashSet<String>();
@@ -174,10 +192,12 @@ public class MainActivity extends AppCompatActivity {
                 while (cursor.moveToNext()) {
                     // 根据索引值获取图片路径
                     // 像这样：/storage/emulated/0/Pictures/Screenshots/Screenshot_2016-10-21-02-39-00.png
+                    // DATA :	Path to the file on disk
                     String path = cursor.getString(cursor
                             .getColumnIndex(MediaStore.Images.Media.DATA));
 //                    Log.d("WQWQ-path",path);
                     File parentFile = new File(path).getParentFile();
+                    // ContentProvider 当中有些图片是找不到父路径的
                     if (parentFile == null)
                         continue;
                     // 像这样：/storage/emulated/0/Pictures/Screenshots
@@ -189,17 +209,18 @@ public class MainActivity extends AppCompatActivity {
                     {
                         continue;
                     } else {
-                        // 加入 set 当中
+                        // 加入 set 当中，认为这是一个文件夹出现了
                         mDirPaths.add(dirPath);
                         folderBean = new FolderBean();
                         folderBean.setDir(dirPath);
                         folderBean.setFirstImgPath(path);
                     }
 
-                    if (parentFile.list() == null)
+                    if (parentFile.list() == null) // 的的确确 会有这种奇怪的事情
                         continue;
                     int picSize = parentFile.list(
                             new FilenameFilter() {
+                                // 只获得 后缀为 .jpg .jpeg .png 文件的数量
                                 @Override
                                 public boolean accept(File dir, String filename) {
                                     if (filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png"))
@@ -209,6 +230,7 @@ public class MainActivity extends AppCompatActivity {
                             }
                     ).length;
                     folderBean.setCount(picSize);
+                    // mFolderBeans 用于初始化 popupWindow
                     mFolderBeans.add(folderBean);
 
                     if (picSize > mMaxCount) {
@@ -245,6 +267,7 @@ public class MainActivity extends AppCompatActivity {
         lp.alpha = .3f;
         getWindow().setAttributes(lp);
     }
+
     public static void verifyStoragePermissions(Activity activity) {
 
         try {
@@ -253,7 +276,7 @@ public class MainActivity extends AppCompatActivity {
                     "android.permission.WRITE_EXTERNAL_STORAGE");
             if (permission != PackageManager.PERMISSION_GRANTED) {
                 // 没有写的权限，去申请写的权限，会弹出对话框
-                ActivityCompat.requestPermissions(activity, PERMISSIONS_STORAGE,REQUEST_EXTERNAL_STORAGE);
+                ActivityCompat.requestPermissions(activity, PERMISSIONS_STORAGE, REQUEST_EXTERNAL_STORAGE);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -261,3 +284,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 }
+/**
+ *  // 创建File对象
+ *  File file = new File("D:\\Android");
+ *  // 获取该目录下的所有文件
+ *  String[] files = file.list();
+ */

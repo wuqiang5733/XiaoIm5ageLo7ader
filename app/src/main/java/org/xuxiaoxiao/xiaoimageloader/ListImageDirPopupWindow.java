@@ -30,6 +30,7 @@ import java.util.List;
 public class ListImageDirPopupWindow extends PopupWindow {
     private int mWidth;
     private int mHeight;
+    // 它自己的布局
     private View mConvertView;
     private ListView mListView;
     private List<FolderBean> mData;
@@ -65,6 +66,7 @@ public class ListImageDirPopupWindow extends PopupWindow {
         setTouchInterceptor(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
+                // 如果点击是发生在 PopupWindow 外面，让 PopupWindow 消失
                 if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
                     dismiss();
                     return true;
@@ -72,6 +74,7 @@ public class ListImageDirPopupWindow extends PopupWindow {
                 return false;
             }
         });
+        //  如果要做一个 BasePopupWindow 出来，下面两个方法要做成抽象方法
         initViews(context);
         initEvent();
     }

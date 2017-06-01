@@ -16,12 +16,17 @@ import java.util.List;
 import java.util.Set;
 
 public class ImageAdapter extends BaseAdapter {
+    // 这儿用 static 是能够做到切换到不同的文件夹之后，
+    // 上次选中的图片文件依然保留着，
+    // 并且在切换文件夹的时候 ImageAdapter 会被重新 New ，static 不受这些影响，
+    // 并且注意这儿用的是 Set
     private static Set<String> mSelectedImg = new HashSet<String>();
     private String mDirPath;
     // 包含目录下的所有图片路径的List
     private List<String> mImgPaths;
     private LayoutInflater mInflater;
-
+    // mData 是图片名称的集合，而不是完整路径的集合，这样做是为了省内存
+    // dirPath 图片所在文件夹的路径
     public ImageAdapter(Context context, List<String> mData, String dirPath) {
         this.mDirPath = dirPath;
         this.mImgPaths = mData;
@@ -59,7 +64,7 @@ public class ImageAdapter extends BaseAdapter {
         viewHolder.mImg.setImageResource(R.drawable.pictures_no);
         viewHolder.mSelect.setImageResource(R.drawable.picture_unselected);
         viewHolder.mImg.setColorFilter(null);
-
+        // 下面这一句代码实现了从 图片路径 到 显示图片
         ImageLoader.getInstance(3, ImageLoader.Type.LIFO).LoadImage(
                 mDirPath + "/" + mImgPaths.get(position), viewHolder.mImg);
 

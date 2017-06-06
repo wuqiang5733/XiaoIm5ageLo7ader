@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
                 mImgs = Arrays.asList(mCurrentDir.list(new FilenameFilter() {
                     @Override
                     public boolean accept(File dir, String filename) {
-                        if (filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png"))
+                        if (filename.endsWith(".jpg") || filename.endsWith(".JPG")|| filename.endsWith(".jpeg") || filename.endsWith(".png"))
                             return true;
                         return false;
                     }
@@ -223,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
                                 // 只获得 后缀为 .jpg .jpeg .png 文件的数量
                                 @Override
                                 public boolean accept(File dir, String filename) {
-                                    if (filename.endsWith(".jpg") || filename.endsWith(".jpeg") || filename.endsWith(".png"))
+                                    if (filename.endsWith(".jpg") || filename.endsWith(".JPG")|| filename.endsWith(".jpeg") || filename.endsWith(".png"))
                                         return true;
                                     return false;
                                 }
